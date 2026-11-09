@@ -1,3 +1,4 @@
+
 name: Сборка Yozora
 
 on:
@@ -43,14 +44,24 @@ jobs:
       - name: Fix build files
         run: |
           ROOT=${{ steps.root.outputs.ROOT }}
-          # стабильный Loom вместо снапшота
           sed -i "s/fabric-loom[^']*\'[0-9A-Za-z.\-]*'/fabric-loom' version '1.7.4'/" "$ROOT/build.gradle"
-          # репозиторий Fabric для плагинов
           printf 'pluginManagement {\n  repositories {\n    maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }\n    mavenCentral()\n    gradlePluginPortal()\n  }\n}\nrootProject.name = "yozora"\n' > "$ROOT/settings.gradle"
           echo "--- build.gradle (строки 1-15) ---"
           head -15 "$ROOT/build.gradle"
           echo "--- settings.gradle ---"
           cat "$ROOT/settings.gradle"
+
+      - name: Диагностика битых файлов
+        run: |
+          ROOT=${{ steps.root.outputs.ROOT }}
+          echo "=== BackgroundRendererMixin.java целиком ==="
+          cat "$ROOT/src/main/java/ru/yozora/mixin/BackgroundRendererMixin.java" || true
+          echo ""
+          echo "=== Все файлы с заглушками (... ) ==="
+          grep -rn '(\.\.\.)' "$ROOT/src" --include='*.java' || echo "заглушек больше нет"
+          echo ""
+          echo "=== Все файлы с '...' в сигнатурах ==="
+          grep -rln 'void .*(\.\.\.) {}' "$ROOT/src" --include='*.java' || echo "пустых заглушек больше нет"
 
       - name: Build
         working-directory: ${{ steps.root.outputs.ROOT }}
