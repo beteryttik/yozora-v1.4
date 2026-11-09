@@ -94,9 +94,46 @@ jobs:
           grep -cE ", (false|true)," "$SRC/cosmetic/CosmeticRegistry.java" || true
           grep -n "textRenderer" "$MC" || true
 
+      - name: Fix entrypoint
+        run: |
+          ROOT=${{ steps.root.outputs.ROOT }}
+          FMJ="$ROOT/src/main/resources/fabric.mod.json"
+
+          echo "--- fabric.mod.json (оригинал) ---"
+          cat "$FMJ"
+
+          YF=$(find "$ROOT/src/main/java" -name "Yozora.java" | head -1)
+          if [ -z "$YF" ] && grep -q '"ru.yozora.Yozora"' "$FMJ"; then
+            echo "Класс ru.yozora.Yozora отсутствует — ищем замену"
+            CAND=$(grep -rl "ClientModInitializer" "$ROOT/src/main/java" | head -1)
+            if [ -n "$CAND" ]; then
+              FQCN=$(echo "$CAND" | sed "s|.*/src/main/java/||; s|\.java$||; s|/|.|g")
+              echo "Замена entrypoint: ru.yozora.Yozora -> $FQCN"
+              sed -i "s|\"ru.yozora.Yozora\"|\"$FQCN\"|g" "$FMJ"
+            else
+              echo "Класс с ClientModInitializer не найден!"
+              grep -rl "onInitialize" "$ROOT/src/main/java" | head -5
+              exit 1
+            fi
+          else
+            echo "Entrypoint в порядке или класс на месте: $YF"
+          fi
+
+          echo "--- fabric.mod.json (итог) ---"
+          cat "$FMJ"
+
       - name: Build
         working-directory: ${{ steps.root.outputs.ROOT }}
         run: gradle build --no-daemon --stacktrace
+
+      - name: Inspect jar
+        run: |
+          ROOT=${{ steps.root.outputs.ROOT }}
+          ls -la "$ROOT/build/libs"
+          for J in "$ROOT"/build/libs/*.jar; do
+            echo "=== $J ==="
+            unzip -l "$J" | grep -E "ru/yozora|fabric.mod.json" | head -30
+          done
 
       - name: Upload jar
         uses: actions/upload-artifact@v4
