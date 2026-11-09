@@ -56,11 +56,36 @@ jobs:
                 "$MIXDIR/ClientPlayerEntityMixin.java" \
                 "$MIXDIR/EntityRenderDispatcherMixin.java" \
                 "$MIXDIR/WindowMixin.java"
-          # вычёркиваем их из всех конфигов миксинов
           grep -rl -e "BackgroundRendererMixin" -e "ClientPlayerEntityMixin" -e "EntityRenderDispatcherMixin" -e "WindowMixin" "$ROOT/src/main/resources" | while read f; do
             sed -i -e '/BackgroundRendererMixin/d' -e '/ClientPlayerEntityMixin/d' -e '/EntityRenderDispatcherMixin/d' -e '/WindowMixin/d' "$f"
             echo "вычищено из: $f"
           done
+
+      - name: Fix broken code
+        run: |
+          ROOT=${{ steps.root.outputs.ROOT }}
+          SRC="$ROOT/src/main/java/ru/yozora"
+
+          # CosmeticRegistry: False -> false (все 95 ошибок разом)
+          sed -i 's/, False,/, false,/g' "$SRC/cosmetic/CosmeticRegistry.java"
+
+          # SettingsPanel: preset — это строка, вызывать .name() у неё нельзя
+          sed -i 's/preset\.name()/preset/g' "$SRC/gui/SettingsPanel.java"
+
+          # ModuleCard: заменяем YozoraClient.minecraftTextRenderer() на ванильный текстрендер
+          MC="$SRC/gui/widget/ModuleCard.java"
+          if ! grep -q "import net.minecraft.client.MinecraftClient;" "$MC"; then
+            sed -i '1a import net.minecraft.client.MinecraftClient;' "$MC"
+          fi
+          sed -i 's/YozoraClient\.minecraftTextRenderer()/MinecraftClient.getInstance().textRenderer/g' "$MC"
+
+          # FontCache: ToIntFunction несовместим с Function — оборачиваем в лямбду
+          sed -i 's/widths\.computeIfAbsent(text, real);/widths.computeIfAbsent(text, s -> Integer.valueOf(real.applyAsInt(s)));/' "$SRC/optimization/FontCache.java"
+
+          echo "--- проверка правок ---"
+          grep -c ", false," "$SRC/cosmetic/CosmeticRegistry.java" || true
+          grep -n "textRenderer" "$MC" || true
+          grep -n "applyAsInt" "$SRC/optimization/FontCache.java" || true
 
       - name: Build
         working-directory: ${{ steps.root.outputs.ROOT }}
