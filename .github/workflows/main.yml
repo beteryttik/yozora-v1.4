@@ -48,13 +48,17 @@ jobs:
           echo "--- build.gradle (строки 1-15) ---"
           head -15 "$ROOT/build.gradle"
 
-      - name: Remove broken mixin
+      - name: Remove broken mixins
         run: |
           ROOT=${{ steps.root.outputs.ROOT }}
-          rm "$ROOT/src/main/java/ru/yozora/mixin/BackgroundRendererMixin.java"
-          # вычёркиваем миксин из всех json-конфигов, где он упомянут
-          grep -rl "BackgroundRendererMixin" "$ROOT/src/main/resources" | while read f; do
-            sed -i '/BackgroundRendererMixin/d' "$f"
+          MIXDIR="$ROOT/src/main/java/ru/yozora/mixin"
+          rm -v "$MIXDIR/BackgroundRendererMixin.java" \
+                "$MIXDIR/ClientPlayerEntityMixin.java" \
+                "$MIXDIR/EntityRenderDispatcherMixin.java" \
+                "$MIXDIR/WindowMixin.java"
+          # вычёркиваем их из всех конфигов миксинов
+          grep -rl -e "BackgroundRendererMixin" -e "ClientPlayerEntityMixin" -e "EntityRenderDispatcherMixin" -e "WindowMixin" "$ROOT/src/main/resources" | while read f; do
+            sed -i -e '/BackgroundRendererMixin/d' -e '/ClientPlayerEntityMixin/d' -e '/EntityRenderDispatcherMixin/d' -e '/WindowMixin/d' "$f"
             echo "вычищено из: $f"
           done
 
