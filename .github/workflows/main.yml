@@ -19,20 +19,34 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
       - name: Unpack zip
         run: unzip -q yozora_v1.4.zip -d unpacked
 
-      - name: Find project root
-        id: root
+      - name: Fix gradle wrapper and settings
         run: |
           ROOT=$(find unpacked -name gradlew -type f | head -1 | xargs dirname)
-          echo "dir=$ROOT" >> "$GITHUB_OUTPUT"
-          echo "Проект найден в: $ROOT"
-          ls "$ROOT"
+          echo "Проект: $ROOT"
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.10.2-bin.zip|' "$ROOT/gradle/wrapper/gradle-wrapper.properties"
+          cat > "$ROOT/settings.gradle" <<'EOF'
+          pluginManagement {
+              repositories {
+                  maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
+                  mavenCentral()
+                  gradlePluginPortal()
+              }
+          }
+          rootProject.name = 'yozora'
+          EOF
+          echo "settings.gradle создан"
 
       - name: Build
-        working-directory: ${{ steps.root.outputs.dir }}
+        working-directory: ${{ format('{0}', '') }}
         run: |
+          ROOT=$(find unpacked -name gradlew -type f | head -1 | xargs dirname)
+          cd "$ROOT"
           chmod +x gradlew
           ./gradlew build --no-daemon --stacktrace
 
@@ -42,4 +56,3 @@ jobs:
           name: yozora-client
           path: unpacked/**/build/libs/*.jar
           if-no-files-found: error
-
