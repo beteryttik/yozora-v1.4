@@ -18,15 +18,11 @@ jobs:
           ZIP=$(find . -name "*.zip" -not -path "./.git/*" | head -1)
           echo "Архив: $ZIP"
           unzip -q "$ZIP" -d unpacked
-          echo "--- содержимое unpacked ---"
-          ls unpacked
-          find unpacked -maxdepth 2 -type d
 
       - name: Find project root
         id: root
         run: |
           ROOT=$(find unpacked -name build.gradle | head -1 | xargs dirname)
-          [ -z "$ROOT" ] && ROOT=unpacked/yozora
           echo "ROOT=$ROOT" >> "$GITHUB_OUTPUT"
           echo "--- файлы в корне проекта ---"
           ls "$ROOT"
@@ -44,6 +40,18 @@ jobs:
           echo "/opt/gradle-8.10.2/bin" >> "$GITHUB_PATH"
           gradle --version
 
+      - name: Fix build files
+        run: |
+          ROOT=${{ steps.root.outputs.ROOT }}
+          # стабильный Loom вместо снапшота
+          sed -i "s/fabric-loom[^']*\'[0-9A-Za-z.\-]*'/fabric-loom' version '1.7.4'/" "$ROOT/build.gradle"
+          # репозиторий Fabric для плагинов
+          printf 'pluginManagement {\n  repositories {\n    maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }\n    mavenCentral()\n    gradlePluginPortal()\n  }\n}\nrootProject.name = "yozora"\n' > "$ROOT/settings.gradle"
+          echo "--- build.gradle (строки 1-15) ---"
+          head -15 "$ROOT/build.gradle"
+          echo "--- settings.gradle ---"
+          cat "$ROOT/settings.gradle"
+
       - name: Build
         working-directory: ${{ steps.root.outputs.ROOT }}
         run: gradle build --no-daemon --stacktrace
@@ -54,4 +62,3 @@ jobs:
           name: yozora-client
           path: unpacked/**/build/libs/*.jar
           if-no-files-found: error
-
