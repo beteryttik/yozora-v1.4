@@ -58,9 +58,11 @@ jobs:
                  "$MIXDIR/WindowMixin.java" \
                  "$MIXDIR/WorldRendererMixin.java" \
                  "$MIXDIR/LightmapTextureManagerMixin.java" \
-                 "$MIXDIR/ChatScreenMixin.java"
-          grep -rl -e "BackgroundRendererMixin" -e "ClientPlayerEntityMixin" -e "EntityRenderDispatcherMixin" -e "WindowMixin" -e "WorldRendererMixin" -e "LightmapTextureManagerMixin" -e "ChatScreenMixin" "$ROOT/src/main/resources" | while read f; do
-            sed -i -e '/BackgroundRendererMixin/d' -e '/ClientPlayerEntityMixin/d' -e '/EntityRenderDispatcherMixin/d' -e '/WindowMixin/d' -e '/WorldRendererMixin/d' -e '/LightmapTextureManagerMixin/d' -e '/ChatScreenMixin/d' "$f"
+                 "$MIXDIR/ChatScreenMixin.java" \
+                 "$MIXDIR/TitleScreenMixin.java" \
+                 "$MIXDIR/ParticleManagerMixin.java"
+          grep -rl -e "BackgroundRendererMixin" -e "ClientPlayerEntityMixin" -e "EntityRenderDispatcherMixin" -e "WindowMixin" -e "WorldRendererMixin" -e "LightmapTextureManagerMixin" -e "ChatScreenMixin" -e "TitleScreenMixin" -e "ParticleManagerMixin" "$ROOT/src/main/resources" | while read f; do
+            sed -i -e '/BackgroundRendererMixin/d' -e '/ClientPlayerEntityMixin/d' -e '/EntityRenderDispatcherMixin/d' -e '/WindowMixin/d' -e '/WorldRendererMixin/d' -e '/LightmapTextureManagerMixin/d' -e '/ChatScreenMixin/d' -e '/TitleScreenMixin/d' -e '/ParticleManagerMixin/d' "$f"
             echo "вычищено из: $f"
           done
 
