@@ -13,42 +13,40 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Unpack zip
+        run: |
+          ZIP=$(find . -name "*.zip" -not -path "./.git/*" | head -1)
+          echo "Архив: $ZIP"
+          unzip -q "$ZIP" -d unpacked
+          echo "--- содержимое unpacked ---"
+          ls unpacked
+          find unpacked -maxdepth 2 -type d
+
+      - name: Find project root
+        id: root
+        run: |
+          ROOT=$(find unpacked -name build.gradle | head -1 | xargs dirname)
+          [ -z "$ROOT" ] && ROOT=unpacked/yozora
+          echo "ROOT=$ROOT" >> "$GITHUB_OUTPUT"
+          echo "--- файлы в корне проекта ---"
+          ls "$ROOT"
+
       - name: Setup Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Unpack zip
-        run: unzip -q yozora_v1.4.zip -d unpacked
-
-      - name: Fix gradle wrapper and settings
+      - name: Install Gradle 8.10.2
         run: |
-          ROOT=$(find unpacked -name gradlew -type f | head -1 | xargs dirname)
-          echo "Проект: $ROOT"
-          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-8.10.2-bin.zip|' "$ROOT/gradle/wrapper/gradle-wrapper.properties"
-          cat > "$ROOT/settings.gradle" <<'EOF'
-          pluginManagement {
-              repositories {
-                  maven { name = 'Fabric'; url = 'https://maven.fabricmc.net/' }
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          rootProject.name = 'yozora'
-          EOF
-          echo "settings.gradle создан"
+          curl -sL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
+          sudo unzip -q /tmp/gradle.zip -d /opt
+          echo "/opt/gradle-8.10.2/bin" >> "$GITHUB_PATH"
+          gradle --version
 
       - name: Build
-        working-directory: ${{ format('{0}', '') }}
-        run: |
-          ROOT=$(find unpacked -name gradlew -type f | head -1 | xargs dirname)
-          cd "$ROOT"
-          chmod +x gradlew
-          ./gradlew build --no-daemon --stacktrace
+        working-directory: ${{ steps.root.outputs.ROOT }}
+        run: gradle build --no-daemon --stacktrace
 
       - name: Upload jar
         uses: actions/upload-artifact@v4
@@ -56,3 +54,4 @@ jobs:
           name: yozora-client
           path: unpacked/**/build/libs/*.jar
           if-no-files-found: error
+
