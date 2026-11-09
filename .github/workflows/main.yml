@@ -15,17 +15,17 @@ jobs:
 
       - name: Unpack zip
         run: |
-          ZIP=\$(find . -name "*.zip" -not -path "./.git/*" | head -1)
-          echo "Архив: \$ZIP"
-          unzip -q "\$ZIP" -d unpacked
+          ZIP=$(find . -name "*.zip" -not -path "./.git/*" | head -1)
+          echo "Архив: $ZIP"
+          unzip -q "$ZIP" -d unpacked
 
       - name: Find project root
         id: root
         run: |
-          ROOT=\$(find unpacked -name build.gradle | head -1 | xargs dirname)
+          ROOT=$(find unpacked -name build.gradle | head -1 | xargs dirname)
           echo "ROOT=$ROOT" >> "$GITHUB_OUTPUT"
           echo "--- файлы в корне проекта ---"
-          ls "\$ROOT"
+          ls "$ROOT"
 
       - name: Setup Java 21
         uses: actions/setup-java@v4
@@ -37,86 +37,65 @@ jobs:
         run: |
           curl -sL -o /tmp/gradle.zip https://services.gradle.org/distributions/gradle-8.10.2-bin.zip
           sudo unzip -q /tmp/gradle.zip -d /opt
-          echo "/opt/gradle-8.10.2/bin" >> "\$GITHUB_PATH"
+          echo "/opt/gradle-8.10.2/bin" >> "$GITHUB_PATH"
           gradle --version
 
       - name: Fix build files
         run: |
-          ROOT=\${{ steps.root.outputs.ROOT }}
-          sed -i "s/fabric-loom[^']*'[0-9A-Za-z.\-]*'/fabric-loom' version '1.7.4'/" "\$ROOT/build.gradle"
-          printf 'pluginManagement {\n  repositories {\n    maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }\n    mavenCentral()\n    gradlePluginPortal()\n  }\n}\nrootProject.name = "yozora"\n' > "\$ROOT/settings.gradle"
+          ROOT=${{ steps.root.outputs.ROOT }}
+          sed -i "s/fabric-loom[^']*'[0-9A-Za-z.\-]*'/fabric-loom' version '1.7.4'/" "$ROOT/build.gradle"
+          printf 'pluginManagement {\n  repositories {\n    maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }\n    mavenCentral()\n    gradlePluginPortal()\n  }\n}\nrootProject.name = "yozora"\n' > "$ROOT/settings.gradle"
           echo "--- build.gradle (строки 1-15) ---"
-          head -15 "\$ROOT/build.gradle"
+          head -15 "$ROOT/build.gradle"
 
       - name: Remove broken mixins and clean config
         run: |
-          ROOT=\${{ steps.root.outputs.ROOT }}
-          MIXDIR="\$ROOT/src/main/java/ru/yozora/mixin"
-          
-          # 1. Удаляем сами файлы миксинов
-          rm -fv "\$MIXDIR/BackgroundRendererMixin.java" \
-                 "\$MIXDIR/ClientPlayerEntityMixin.java" \
-                 "\$MIXDIR/EntityRenderDispatcherMixin.java" \
-                 "\$MIXDIR/WindowMixin.java" \
-                 "\$MIXDIR/WorldRendererMixin.java" \
-                 "\$MIXDIR/LightmapTextureManagerMixin.java" \
-                 "\$MIXDIR/ChatScreenMixin.java" \
-                 "\$MIXDIR/TitleScreenMixin.java" \
-                 "\$MIXDIR/ParticleManagerMixin.java" \
-                 "\$MIXDIR/InGameHudMixin.java" \
-                 "\$MIXDIR/MinecraftClientMixin.java" \
-                 "\$MIXDIR/DrawContextMixin.java"
+          ROOT=${{ steps.root.outputs.ROOT }}
+          MIXDIR="$ROOT/src/main/java/ru/yozora/mixin"
 
-          # 2. Вычищаем упоминания из ВСЕХ json файлов в resources
-          if [ -d "\$ROOT/src/main/resources" ]; then
-            find "\$ROOT/src/main/resources" -type f -name "*.json" | while read -r file; do
-              echo "Cleaning \$file..."
-              
-              perl -i -pe '
-                s/"ru\.yozora\.mixin\.BackgroundRendererMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.ClientPlayerEntityMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.EntityRenderDispatcherMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.WindowMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.WorldRendererMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.LightmapTextureManagerMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.ChatScreenMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.TitleScreenMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.ParticleManagerMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.InGameHudMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.MinecraftClientMixin",?\s*//g;
-                s/"ru\.yozora\.mixin\.DrawContextMixin",?\s*//g;
-              ' "\$file"
-              
-              perl -i -pe 's/,\s*\]/\]/g; s/,\s*\}/\}/g' "\$file"
-            done
-          fi
-          
-          echo "--- yozora.mixins.json after cleaning ---"
-          cat "\$ROOT/src/main/resources/yozora.mixins.json" || echo "Config file not found"
+          rm -fv "$MIXDIR/BackgroundRendererMixin.java" \
+                 "$MIXDIR/ClientPlayerEntityMixin.java" \
+                 "$MIXDIR/EntityRenderDispatcherMixin.java" \
+                 "$MIXDIR/WindowMixin.java" \
+                 "$MIXDIR/WorldRendererMixin.java" \
+                 "$MIXDIR/LightmapTextureManagerMixin.java" \
+                 "$MIXDIR/ChatScreenMixin.java" \
+                 "$MIXDIR/TitleScreenMixin.java" \
+                 "$MIXDIR/ParticleManagerMixin.java" \
+                 "$MIXDIR/InGameHudMixin.java" \
+                 "$MIXDIR/MinecraftClientMixin.java" \
+                 "$MIXDIR/DrawContextMixin.java"
+
+          find "$ROOT/src/main/resources" -type f -name "*.json" | while read -r file; do
+            echo "Чистим: $file"
+            perl -i -pe 's/"(ru\.yozora\.mixin\.)?(BackgroundRendererMixin|ClientPlayerEntityMixin|EntityRenderDispatcherMixin|WindowMixin|WorldRendererMixin|LightmapTextureManagerMixin|ChatScreenMixin|TitleScreenMixin|ParticleManagerMixin|InGameHudMixin|MinecraftClientMixin|DrawContextMixin)"\s*,?\s*//g; s/,\s*,/,/g; s/,\s*\]/]/g; s/,\s*\}/}/g' "$file"
+          done
+
+          echo "--- yozora.mixins.json после чистки ---"
+          cat "$ROOT/src/main/resources/yozora.mixins.json" || echo "не найден"
 
       - name: Fix broken code
         run: |
-          ROOT=\${{ steps.root.outputs.ROOT }}
-          SRC="\$ROOT/src/main/java/ru/yozora"
+          ROOT=${{ steps.root.outputs.ROOT }}
+          SRC="$ROOT/src/main/java/ru/yozora"
 
-          sed -i 's/\bFalse\b/false/g; s/\bTrue\b/true/g' "\$SRC/cosmetic/CosmeticRegistry.java"
+          sed -i 's/\bFalse\b/false/g; s/\bTrue\b/true/g' "$SRC/cosmetic/CosmeticRegistry.java"
+          sed -i 's/preset\.name()/preset/g' "$SRC/gui/SettingsPanel.java"
 
-          sed -i 's/preset\.name()/preset/g' "\$SRC/gui/SettingsPanel.java"
-
-          MC="\$SRC/gui/widget/ModuleCard.java"
-          if ! grep -q "import net.minecraft.client.MinecraftClient;" "\$MC"; then
-            sed -i '1a import net.minecraft.client.MinecraftClient;' "\$MC"
+          MC="$SRC/gui/widget/ModuleCard.java"
+          if ! grep -q "import net.minecraft.client.MinecraftClient;" "$MC"; then
+            sed -i '1a import net.minecraft.client.MinecraftClient;' "$MC"
           fi
-          sed -i 's/YozoraClient\.minecraftTextRenderer()/MinecraftClient.getInstance().textRenderer/g' "\$MC"
+          sed -i 's/YozoraClient\.minecraftTextRenderer()/MinecraftClient.getInstance().textRenderer/g' "$MC"
 
-          sed -i 's/widths\.computeIfAbsent(text, real);/widths.computeIfAbsent(text, s -> Integer.valueOf(real.applyAsInt(s)));/' "\$SRC/optimization/FontCache.java"
+          sed -i 's/widths\.computeIfAbsent(text, real);/widths.computeIfAbsent(text, s -> Integer.valueOf(real.applyAsInt(s)));/' "$SRC/optimization/FontCache.java"
 
           echo "--- проверка правок ---"
-          grep -cE ", (false|true)," "\$SRC/cosmetic/CosmeticRegistry.java" || true
-          grep -n "textRenderer" "\$MC" || true
+          grep -cE ", (false|true)," "$SRC/cosmetic/CosmeticRegistry.java" || true
+          grep -n "textRenderer" "$MC" || true
 
       - name: Build
-        working-directory: \${{ steps.root.outputs.ROOT }}
+        working-directory: ${{ steps.root.outputs.ROOT }}
         run: gradle build --no-daemon --stacktrace
 
       - name: Upload jar
