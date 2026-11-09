@@ -48,6 +48,19 @@ jobs:
           echo "--- build.gradle (строки 1-15) ---"
           head -15 "$ROOT/build.gradle"
 
+      - name: Stamp build number
+        run: |
+          ROOT=${{ steps.root.outputs.ROOT }}
+          GP="$ROOT/gradle.properties"
+          if grep -q "^mod_version=" "$GP"; then
+            sed -i "s/^mod_version=.*/mod_version=1.4.0-b${GITHUB_RUN_NUMBER}/" "$GP"
+            echo "--- версия мода ---"
+            grep "^mod_version" "$GP"
+          else
+            echo "mod_version не найден в gradle.properties, смотрю другие варианты"
+            cat "$GP"
+          fi
+
       - name: Remove broken mixins and clean config
         run: |
           ROOT=${{ steps.root.outputs.ROOT }}
