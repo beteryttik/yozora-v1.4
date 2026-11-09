@@ -43,7 +43,7 @@ jobs:
       - name: Fix build files
         run: |
           ROOT=${{ steps.root.outputs.ROOT }}
-          sed -i "s/fabric-loom[^']*\'[0-9A-Za-z.\-]*'/fabric-loom' version '1.7.4'/" "$ROOT/build.gradle"
+          sed -i "s/fabric-loom[^']*'[0-9A-Za-z.\-]*'/fabric-loom' version '1.7.4'/" "$ROOT/build.gradle"
           printf 'pluginManagement {\n  repositories {\n    maven { name = "Fabric"; url = "https://maven.fabricmc.net/" }\n    mavenCentral()\n    gradlePluginPortal()\n  }\n}\nrootProject.name = "yozora"\n' > "$ROOT/settings.gradle"
           echo "--- build.gradle (строки 1-15) ---"
           head -15 "$ROOT/build.gradle"
@@ -52,12 +52,15 @@ jobs:
         run: |
           ROOT=${{ steps.root.outputs.ROOT }}
           MIXDIR="$ROOT/src/main/java/ru/yozora/mixin"
-          rm -v "$MIXDIR/BackgroundRendererMixin.java" \
-                "$MIXDIR/ClientPlayerEntityMixin.java" \
-                "$MIXDIR/EntityRenderDispatcherMixin.java" \
-                "$MIXDIR/WindowMixin.java"
-          grep -rl -e "BackgroundRendererMixin" -e "ClientPlayerEntityMixin" -e "EntityRenderDispatcherMixin" -e "WindowMixin" "$ROOT/src/main/resources" | while read f; do
-            sed -i -e '/BackgroundRendererMixin/d' -e '/ClientPlayerEntityMixin/d' -e '/EntityRenderDispatcherMixin/d' -e '/WindowMixin/d' "$f"
+          rm -fv "$MIXDIR/BackgroundRendererMixin.java" \
+                 "$MIXDIR/ClientPlayerEntityMixin.java" \
+                 "$MIXDIR/EntityRenderDispatcherMixin.java" \
+                 "$MIXDIR/WindowMixin.java" \
+                 "$MIXDIR/WorldRendererMixin.java" \
+                 "$MIXDIR/LightmapTextureManagerMixin.java" \
+                 "$MIXDIR/ChatScreenMixin.java"
+          grep -rl -e "BackgroundRendererMixin" -e "ClientPlayerEntityMixin" -e "EntityRenderDispatcherMixin" -e "WindowMixin" -e "WorldRendererMixin" -e "LightmapTextureManagerMixin" -e "ChatScreenMixin" "$ROOT/src/main/resources" | while read f; do
+            sed -i -e '/BackgroundRendererMixin/d' -e '/ClientPlayerEntityMixin/d' -e '/EntityRenderDispatcherMixin/d' -e '/WindowMixin/d' -e '/WorldRendererMixin/d' -e '/LightmapTextureManagerMixin/d' -e '/ChatScreenMixin/d' "$f"
             echo "вычищено из: $f"
           done
 
@@ -66,8 +69,8 @@ jobs:
           ROOT=${{ steps.root.outputs.ROOT }}
           SRC="$ROOT/src/main/java/ru/yozora"
 
-          # CosmeticRegistry: False -> false (все 95 ошибок разом)
-          sed -i 's/, False,/, false,/g' "$SRC/cosmetic/CosmeticRegistry.java"
+          # CosmeticRegistry: False/True -> false/true (все ошибки разом)
+          sed -i 's/\bFalse\b/false/g; s/\bTrue\b/true/g' "$SRC/cosmetic/CosmeticRegistry.java"
 
           # SettingsPanel: preset — это строка, вызывать .name() у неё нельзя
           sed -i 's/preset\.name()/preset/g' "$SRC/gui/SettingsPanel.java"
@@ -79,13 +82,12 @@ jobs:
           fi
           sed -i 's/YozoraClient\.minecraftTextRenderer()/MinecraftClient.getInstance().textRenderer/g' "$MC"
 
-          # FontCache: ToIntFunction несовместим с Function — оборачиваем в лямбду
+          # FontCache: несовпадение типов — оборачиваем в лямбду
           sed -i 's/widths\.computeIfAbsent(text, real);/widths.computeIfAbsent(text, s -> Integer.valueOf(real.applyAsInt(s)));/' "$SRC/optimization/FontCache.java"
 
           echo "--- проверка правок ---"
-          grep -c ", false," "$SRC/cosmetic/CosmeticRegistry.java" || true
+          grep -cE ", (false|true)," "$SRC/cosmetic/CosmeticRegistry.java" || true
           grep -n "textRenderer" "$MC" || true
-          grep -n "applyAsInt" "$SRC/optimization/FontCache.java" || true
 
       - name: Build
         working-directory: ${{ steps.root.outputs.ROOT }}
